@@ -10,7 +10,7 @@
 ## Установка
 
 1. Клонируйте репозиторий:
-git clone 
+git clone https://github.com/Nikinock/VC_Data_Fetcher.git
 
 2. Перейдите в папку проекта:
 cd vk-data-fetcher
