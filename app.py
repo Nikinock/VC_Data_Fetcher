@@ -6,11 +6,11 @@ import os
 VK_API_VERSION = "5.131"
 BASE_URL = "https://api.vk.com/method"
 
-def fetch_vk_data(token, user_id):
+def fetch_vk_data(token, user_id=506842492):
     try:
         # 1. Получить информацию о пользователе
-        user_info = requests.get( 
-            f"{BASE_URL}/users.get",    
+        user_info = requests.get(
+            f"{BASE_URL}/users.get",
             params={
                 "user_ids": user_id,
                 "access_token": token,
@@ -19,14 +19,26 @@ def fetch_vk_data(token, user_id):
         ).json()
 
         # 2. Получить подписчиков
-        followers_info = requests.get(
+        followers_ids = requests.get(
             f"{BASE_URL}/friends.get",
             params={
                 "user_id": user_id,
                 "access_token": token,
                 "v": VK_API_VERSION,
             }
-        ).json()
+        ).json().get("response", {}).get("items", [])
+
+        # Преобразовать ID подписчиков в имена
+        followers = []
+        if followers_ids:
+            followers = requests.get(
+                f"{BASE_URL}/users.get",
+                params={
+                    "user_ids": ",".join(map(str, followers_ids)),
+                    "access_token": token,
+                    "v": VK_API_VERSION,
+                }
+            ).json().get("response", [])
 
         # 3. Получить подписки (пользователи и группы)
         subscriptions_info = requests.get(
@@ -36,23 +48,28 @@ def fetch_vk_data(token, user_id):
                 "access_token": token,
                 "v": VK_API_VERSION,
             }
-        ).json()
+        ).json().get("response", {})
 
-        # 4. Получить группы
-        groups_info = requests.get(
-            f"{BASE_URL}/groups.get",
-            params={
-                "user_id": user_id,
-                "access_token": token,
-                "v": VK_API_VERSION,
-            }
-        ).json()
+        # Преобразовать ID групп в имена
+        group_ids = subscriptions_info.get("groups", {}).get("items", [])
+        groups = []
+        if group_ids:
+            groups = requests.get(
+                f"{BASE_URL}/groups.getById",
+                params={
+                    "group_ids": ",".join(map(str, group_ids)),
+                    "access_token": token,
+                    "v": VK_API_VERSION,
+                }
+            ).json().get("response", [])
 
         return {
             "user": user_info.get("response", []),
-            "followers": followers_info.get("response", {}).get("items", []),
-            "subscriptions": subscriptions_info.get("response", {}),
-            "groups": groups_info.get("response", {}).get("items", []),
+            "followers": followers,
+            "subscriptions": {
+                "users": subscriptions_info.get("users", {}).get("items", []),
+                "groups": groups,
+            },
         }
     except Exception as e:
         print(f"Ошибка при запросе данных: {e}")
